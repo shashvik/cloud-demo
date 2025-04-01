@@ -1,0 +1,136 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Streaming text cursor animation */
+.streaming-cursor {
+  display: inline-block;
+  animation: blink 1s step-end infinite;
+  color: #3b82f6; /* Tailwind blue-500 */
+}
+
+@keyframes blink {
+  from, to { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Make scrollbar invisible but still functional */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@layer base {
+  :root {
+    --background: 222 47% 5%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 7%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 7%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 100% 50%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
+
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-cyber-bg text-foreground overflow-x-hidden;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-black/20 backdrop-blur-xl border border-white/5 shadow-lg;
+  }
+  
+  .cyber-panel {
+    @apply glass relative overflow-hidden rounded-lg;
+  }
+  
+  .cyber-border {
+    @apply border border-white/10 after:absolute after:inset-0 after:p-[1px]
+           after:bg-cyber-gradient after:content-[''] after:rounded-[inherit]
+           after:opacity-40 after:pointer-events-none;
+  }
+  
+  .cyber-button {
+    @apply bg-cyber-blue/10 hover:bg-cyber-blue/20 px-4 py-2 rounded-md 
+           text-white font-medium cyber-border relative overflow-hidden
+           transition-all duration-300 active:scale-95 shadow-[0_0_15px_rgba(0,136,255,0.5)];
+  }
+
+  .cyber-glow {
+    @apply before:absolute before:inset-0 before:bg-cyber-gradient 
+           before:opacity-50 before:blur-xl before:pointer-events-none;
+  }
+
+  .parallax-layer {
+    @apply absolute inset-0 w-full min-h-screen pointer-events-none;
+  }
+}
+
+.text-cyber-gradient {
+  @apply bg-clip-text text-transparent bg-cyber-gradient;
+}
+
+.hover-scale {
+  @apply transition-transform duration-300 hover:scale-105;
+}
+
+.typing-container {
+  @apply inline-block;
+}
+
+.typing-text {
+  @apply overflow-hidden whitespace-nowrap border-r-4 border-cyber-blue pr-1;
+  animation: typing 3.5s steps(40, end), blink-caret 0.75s step-end infinite;
+}
+
+@keyframes typing {
+  from { width: 0 }
+  to { width: 100% }
+}
+
+@keyframes blink-caret {
+  from, to { border-color: transparent }
+  50% { border-color: hsl(var(--primary)); }
+}
+
+.particle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}

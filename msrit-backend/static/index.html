@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ollama Chat Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+        }
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 5px;
+        }
+        .user-message {
+            background-color: #e1f5fe;
+            align-self: flex-end;
+            margin-left: 20%;
+        }
+        .assistant-message {
+            background-color: #f1f1f1;
+            align-self: flex-start;
+            margin-right: 20%;
+        }
+        .input-container {
+            display: flex;
+            margin-top: 10px;
+        }
+        #message-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            margin-left: 10px;
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        select {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        .controls {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Ollama Chat Interface</h1>
+        
+        <div class="controls">
+            <select id="model-select">
+                <option value="llama3">Loading models...</option>
+            </select>
+            <button id="clear-chat">Clear Chat</button>
+        </div>
+        
+        <div id="chat-container"></div>
+        
+        <div class="input-container">
+            <textarea id="message-input" placeholder="Type your message here..." rows="3"></textarea>
+            <button id="send-button">Send</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatContainer = document.getElementById('chat-container');
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-button');
+            const modelSelect = document.getElementById('model-select');
+            const clearChatButton = document.getElementById('clear-chat');
+            
+            let messages = [
+                { role: 'system', content: 'You are a helpful AI assistant.' }
+            ];
+            
+            // Fetch available models
+            fetch('/api/models')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.models) {
+                        modelSelect.innerHTML = '';
+                        data.models.forEach(model => {
+                            const option = document.createElement('option');
+                            option.value = model.name;
+                            option.textContent = model.name;
+                            modelSelect.appendChild(option);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching models:', error);
+                    modelSelect.innerHTML = '<option value="llama3">llama3</option>';
+                });
+            
+            // Add message to chat
+            function addMessage(role, content) {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message');
+                messageDiv.classList.add(role === 'user' ? 'user-message' : 'assistant-message');
+                
+                // Convert newlines to <br> tags
+                const formattedContent = content.replace(/\n/g, '<br>');
+                messageDiv.innerHTML = formattedContent;
+                
+                chatContainer.appendChild(messageDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+                
+                // Add to messages array for context
+                messages.push({ role, content });
+            }
+            
+            // Send message to API
+            function sendMessage() {
+                const message = messageInput.value.trim();
+                if (!message) return;
+                
+                // Add user message to chat
+                addMessage('user', message);
+                messageInput.value = '';
+                
+                // Add loading indicator
+                const loadingDiv = document.createElement('div');
+                loadingDiv.classList.add('message', 'assistant-message', 'loading');
+                loadingDiv.textContent = 'Thinking...';
+                chatContainer.appendChild(loadingDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+                
+                // Get selected model
+                const selectedModel = modelSelect.value;
+                
+                // Use streaming endpoint
+                const eventSource = new EventSource(`/api/chat/stream?_=${Date.now()}`);
+                
+                // Send the request
+                fetch('/api/chat/stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: messages,
+                        model: selectedModel
+                    })
+                });
+                
+                let assistantResponse = '';
+                
+                eventSource.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        
+                        // Remove loading indicator if it exists
+                        if (document.querySelector('.loading')) {
+                            chatContainer.removeChild(document.querySelector('.loading'));
+                        }
+                        
+                        if (data.message) {
+                            const content = data.message.content;
+                            
+                            // If this is the first chunk, create a new message
+                            if (assistantResponse === '') {
+                                assistantResponse = content;
+                                addMessage('assistant', content);
+                            } else {
+                                // Otherwise update the existing message
+                                assistantResponse += content;
+                                const lastMessage = chatContainer.lastElementChild;
+                                if (lastMessage && lastMessage.classList.contains('assistant-message')) {
+                                    lastMessage.innerHTML = assistantResponse.replace(/\n/g, '<br>');
+                                }
+                            }
+                        }
+                        
+                        if (data.done) {
+                            eventSource.close();
+                        }
+                    } catch (error) {
+                        console.error('Error parsing SSE data:', error);
+                    }
+                };
+                
+                eventSource.onerror = function() {
+                    // Remove loading indicator if it exists
+                    if (document.querySelector('.loading')) {
+                        chatContainer.removeChild(document.querySelector('.loading'));
+                    }
+                    
+                    if (assistantResponse === '') {
+                        addMessage('assistant', 'Sorry, there was an error processing your request.');
+                    }
+                    
+                    eventSource.close();
+                };
+            }
+            
+            // Event listeners
+            sendButton.addEventListener('click', sendMessage);
+            
+            messageInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            clearChatButton.addEventListener('click', () => {
+                chatContainer.innerHTML = '';
+                messages = [
+                    { role: 'system', content: 'You are a helpful AI assistant.' }
+                ];
+            });
+        });
+    </script>
+</body>
+</html>
