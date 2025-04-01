@@ -83,45 +83,122 @@ export const useOllama = () => {
       setMessages(prevMessages => [...prevMessages, initialStreamingMessage]);
       setIsStreaming(true);
       
-      // Use non-streaming endpoint first to avoid CORS issues with EventSource
-      const response = await fetch(`${API_BASE_URL}/chat`, {
+      // Prepare the request payload
+      const payload = {
+        messages: historyForPrompt,
+        model: 'gemma3:1b', // Using default model from backend config
+      };
+      
+      // Create a controller to abort the fetch if needed
+      const controller = new AbortController();
+      const { signal } = controller;
+      
+      // Make the POST request to the streaming endpoint
+      const response = await fetch(`${API_BASE_URL}/chat/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          messages: historyForPrompt,
-          model: 'gemma3:1b', // Using default model from backend config
-        }),
+        body: JSON.stringify(payload),
+        signal,
       });
       
       if (!response.ok) {
         throw new Error(`Backend API error: ${response.status}`);
       }
       
-      const responseData = await response.json();
-      
-      // Update the message with the response
-      if (responseData.message) {
-        const content = responseData.message.content || '';
-        
-        // Update the streaming message in the messages array
-        setMessages(prevMessages => {
-          const newMessages = [...prevMessages];
-          const lastMessage = newMessages[newMessages.length - 1];
-          
-          if (lastMessage && lastMessage.isStreaming) {
-            lastMessage.content = content;
-            lastMessage.isStreaming = false;
-          }
-          
-          return newMessages;
-        });
-      } else if (responseData.error) {
-        throw new Error(responseData.error);
+      // Process the streaming response
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('Response body is null');
       }
       
-      // Finalize
+      let fullResponse = '';
+      
+      // Read the stream
+      const processStream = async () => {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) {
+              // Stream is complete
+              break;
+            }
+            
+            // Decode the chunk
+            const chunk = new TextDecoder().decode(value);
+            
+            // Process each line in the chunk (server-sent events format)
+            const lines = chunk.split('\n').filter(line => line.trim() !== '');
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  // Extract the JSON data
+                  const jsonStr = line.substring(6); // Remove 'data: ' prefix
+                  const data = JSON.parse(jsonStr);
+                  
+                  // Handle message content
+                  if (data.message) {
+                    const content = data.message.content || '';
+                    
+                    // Update the full response
+                    fullResponse += content;
+                    streamingMessageRef.current = fullResponse;
+                    
+                    // Update the streaming message in the messages array
+                    setMessages(prevMessages => {
+                      const newMessages = [...prevMessages];
+                      const lastMessage = newMessages[newMessages.length - 1];
+                      
+                      if (lastMessage && lastMessage.isStreaming) {
+                        lastMessage.content = fullResponse;
+                      }
+                      
+                      return newMessages;
+                    });
+                  }
+                  
+                  // Handle completion
+                  if (data.done) {
+                    // Finalize the message when streaming is complete
+                    setMessages(prevMessages => {
+                      const newMessages = [...prevMessages];
+                      const lastMessage = newMessages[newMessages.length - 1];
+                      
+                      if (lastMessage && lastMessage.isStreaming) {
+                        lastMessage.isStreaming = false;
+                      }
+                      
+                      return newMessages;
+                    });
+                    
+                    setIsStreaming(false);
+                    setIsLoading(false);
+                    break;
+                  }
+                } catch (e) {
+                  console.error('Error parsing SSE data:', e, line);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          if (e.name !== 'AbortError') {
+            console.error('Error reading stream:', e);
+            throw e;
+          }
+        } finally {
+          reader.releaseLock();
+        }
+      };
+      
+      // Start processing the stream
+      await processStream();
+      
+      // Clean up
+      controller.abort();
       setIsStreaming(false);
       setIsLoading(false);
       
