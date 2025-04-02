@@ -1,0 +1,48 @@
+# Backend Dockerfile - Using Alpine base image for Python
+FROM python:3.11-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Add labels for better maintainability
+LABEL maintainer="MSRIT Project Team"
+LABEL description="Backend server for MSRIT Chatbot"
+
+# Install system dependencies
+# Add build dependencies for Python packages that might need compilation
+RUN apk add --no-cache --virtual .build-deps \
+    gcc \
+    musl-dev \
+    python3-dev \
+    && apk add --no-cache \
+    bash \
+    curl
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=off \
+    PIP_DISABLE_PIP_VERSION_CHECK=on
+
+# Copy requirements file
+COPY msrit-backend/requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt && \
+    apk del .build-deps
+
+# Copy application code
+COPY msrit-backend .
+
+# Create a non-root user to run the application
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN chown -R appuser:appgroup /app
+USER appuser
+
+# Expose port
+EXPOSE 5000
+
+# Health check
+
+# Run the application using the LangGraph implementation
+CMD ["python3", "app.py"]

@@ -3,7 +3,8 @@ import { useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 
 // Define API endpoints
-const API_BASE_URL = 'http://localhost:5000/api';
+// Use relative URL which will be proxied to the backend service
+const API_BASE_URL = '/api';
 
 export type Message = {
   role: 'user' | 'assistant' | 'system';
@@ -43,7 +44,7 @@ export const useOllama = () => {
     } catch (err) {
       setIsConnected(false);
       setError('Failed to connect to backend server');
-      toast.error('Failed to connect to backend API. Is the Flask server running on localhost:5000?');
+      toast.error('Failed to connect to backend API. Is the Flask server running?');
       return false;
     } finally {
       setIsLoading(false);

@@ -194,7 +194,7 @@ const ChatInterface: React.FC = () => {
             </div>
             
             <p className="text-xs text-gray-500 mt-2 text-center">
-              MSRIT College Project - Requires Ollama running locally
+              Requires Ollama running locally
             </p>
           </form>
         </div>
