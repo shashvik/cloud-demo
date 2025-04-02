@@ -36,7 +36,7 @@ metadata:
   name: backend-service
   namespace: msrit-chatbot
 spec:
-  type: ClusterIP  # Change from NodePort to ClusterIP
+  type: ClusterIP
   selector:
     app: backend
   ports:
@@ -65,7 +65,7 @@ spec:
           imagePullPolicy: Never
           env:
             - name: REACT_APP_API_URL
-              value: "/api"
+              value: "http://backend-service.msrit-chatbot.svc.cluster.local:5000"
           ports:
             - containerPort: 8080
 ---
@@ -74,49 +74,19 @@ kind: Service
 metadata:
   name: frontend-service
   namespace: msrit-chatbot
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$1
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: frontend
   ports:
     - protocol: TCP
       port: 8080
       targetPort: 8080
-      nodePort: 30001  # Exposed on localhost:8080
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: msrit-ingress
-  namespace: msrit-chatbot
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
-spec:
-  rules:
-  - http:
-      paths:
-      - path: /api(/|$)(.*)
-        pathType: Prefix
-        backend:
-          service:
-            name: backend-service
-            port:
-              number: 5000
-      - path: /(.*)
-        pathType: Prefix
-        backend:
-          service:
-            name: frontend-service
-            port:
-              number: 8080
 ---
 apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: ollama-storage-pv
-  # PersistentVolumes are cluster-wide resources, not namespaced
 spec:
   capacity:
     storage: 10Gi
@@ -125,7 +95,6 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   hostPath:
     path: "/mnt/data/ollama"
-
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -138,7 +107,6 @@ spec:
   resources:
     requests:
       storage: 10Gi
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -177,7 +145,6 @@ spec:
             limits:
               memory: "4Gi"
               cpu: "2000m"
-
 ---
 apiVersion: v1
 kind: Service
@@ -185,10 +152,36 @@ metadata:
   name: ollama-service
   namespace: msrit-chatbot
 spec:
-  type: ClusterIP  # ✅ Change from NodePort to ClusterIP
+  type: ClusterIP
   selector:
     app: ollama
   ports:
     - protocol: TCP
       port: 11434
       targetPort: 11434
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: msrit-ingress
+  namespace: msrit-chatbot
+spec:
+  ingressClassName: nginx  # ✅ ADD THIS
+  rules:
+  - host: localhost  # ✅ Ensure this matches your test URL
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: backend-service
+            port:
+              number: 5000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-service
+            port:
+              number: 8080

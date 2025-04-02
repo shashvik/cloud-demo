@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 
 // Define API endpoints
 // Use relative URL which will be proxied to the backend service
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'http://localhost/api';
 
 export type Message = {
   role: 'user' | 'assistant' | 'system';
