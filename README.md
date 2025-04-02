@@ -6,16 +6,26 @@ Steps:
 
 3. setup kubectl on laptop
 
-4. git clone this repo and build the docker files docker build -t msrit-frontend -f Dockerfile.frontend . and docker build -t msrit-backend -f Dockerfile.backend .
+4. git clone this repo and build the docker files cd cloud-demo
 
-5. run kubectl apply -f msrit-chatbot.yaml
+5. docker build -t msrit-frontend -f Dockerfile.frontend . 
 
-6. run kubectl get pods -n msrit-chatbot
+6. docker build -t msrit-backend -f Dockerfile.backend .
 
-7. run kubectl get svc -n msrit-chatbot   
+7. kubectl apply -f msrit-chatbot.yaml
 
-8. run kubectl port-forward -n msrit-chatbot deployment/backend 5000:5000 and kubectl port-forward -n msrit-chatbot deployment/frontend 8080:8080 on 2 different terminal
+8. kubectl get pods -n msrit-chatbot
 
-9. open http://localhost:8080 in browser
+9. kubectl get svc -n msrit-chatbot   
 
-10. run kubectl delete -f msrit-chatbot.yaml
+10. run the below 2 commands on 2 different terminals:
+
+    10.1 kubectl port-forward -n msrit-chatbot deployment/backend 5000:5000 
+
+    10.2 kubectl port-forward -n msrit-chatbot deployment/frontend 8080:8080 
+
+11. open http://localhost:8080 in browser
+
+12. Run below to delete the resources: 
+
+    12.1 kubectl delete -f msrit-chatbot.yaml
