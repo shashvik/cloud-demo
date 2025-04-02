@@ -6,7 +6,7 @@ Steps:
 
 3. setup kubectl on laptop
 
-4. git clone this repo
+4. git clone this repo and build the docker files docker build -t msrit-frontend -f Dockerfile.frontend . and docker build -t msrit-backend -f Dockerfile.backend .
 
 5. run kubectl apply -f msrit-chatbot.yaml
 
